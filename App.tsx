@@ -38,10 +38,51 @@ const App: React.FC = () => {
       setFullPlan(plan);
       setStage('review');
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
-      setError(`Failed to generate plan: ${errorMessage}. Please try again.`);
+      let errorMessage = 'An unknown error occurred.';
+      
+      if (err instanceof Error) {
+        // Check if error message is a JSON string
+        try {
+          const parsed = JSON.parse(err.message);
+          if (parsed?.error) {
+            const apiError = parsed.error;
+            if (apiError.code === 503 || apiError.status === 'UNAVAILABLE') {
+              errorMessage = 'The AI service is temporarily overloaded. Please wait a moment and try again.';
+            } else if (apiError.message) {
+              errorMessage = apiError.message;
+            }
+          } else {
+            errorMessage = err.message;
+          }
+        } catch {
+          // Not JSON, use message as-is
+          errorMessage = err.message;
+        }
+      } else if (typeof err === 'string') {
+        // Try to parse if it's JSON string
+        try {
+          const parsed = JSON.parse(err);
+          if (parsed?.error?.message) {
+            errorMessage = parsed.error.message;
+          } else {
+            errorMessage = err;
+          }
+        } catch {
+          errorMessage = err;
+        }
+      } else if (err && typeof err === 'object') {
+        // Try to extract user-friendly error message
+        const apiError = (err as any)?.error || err;
+        if (apiError?.message) {
+          errorMessage = apiError.message;
+        } else if (apiError?.code === 503 || apiError?.status === 'UNAVAILABLE') {
+          errorMessage = 'The AI service is temporarily overloaded. Please wait a moment and try again.';
+        }
+      }
+      
+      setError(errorMessage);
       setStage('input');
-      console.error(err);
+      console.error('Error generating plan:', err);
     } finally {
       setProgress([]);
     }

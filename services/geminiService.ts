@@ -72,6 +72,73 @@ const durationMap = {
     intense: '10 to 12 days'
 };
 
+/**
+ * Helper function to extract a user-friendly error message from API errors
+ */
+const getErrorMessage = (error: any): string => {
+    if (error?.error) {
+        const apiError = error.error;
+        // Handle specific error codes
+        if (apiError.code === 503 || apiError.status === 'UNAVAILABLE') {
+            return 'The AI service is temporarily overloaded. Please wait a moment and try again.';
+        }
+        if (apiError.code === 429) {
+            return 'Too many requests. Please wait a moment and try again.';
+        }
+        if (apiError.code === 401 || apiError.code === 403) {
+            return 'API key is invalid or missing. Please check your configuration.';
+        }
+        if (apiError.message) {
+            return apiError.message;
+        }
+    }
+    if (error?.message) {
+        return error.message;
+    }
+    return 'An unexpected error occurred. Please try again.';
+};
+
+/**
+ * Retry helper with exponential backoff for transient errors (503, 429, etc.)
+ */
+const retryWithBackoff = async <T>(
+    fn: () => Promise<T>,
+    maxRetries: number = 3,
+    initialDelay: number = 1000,
+    errorMessage?: string,
+    progressCallback?: (message: string) => void
+): Promise<T> => {
+    let lastError: any;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            return await fn();
+        } catch (error: any) {
+            lastError = error;
+            const errorCode = error?.error?.code || error?.code;
+            const status = error?.error?.status;
+            
+            // Only retry on transient errors (503, 429, or UNAVAILABLE status)
+            const shouldRetry = (errorCode === 503 || errorCode === 429 || status === 'UNAVAILABLE') && attempt < maxRetries;
+            
+            if (shouldRetry) {
+                // Exponential backoff: 1s, 2s, 4s
+                const delay = initialDelay * Math.pow(2, attempt);
+                if (progressCallback) {
+                    progressCallback(`Service temporarily unavailable. Retrying in ${delay / 1000} seconds... (Attempt ${attempt + 1}/${maxRetries})`);
+                }
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue;
+            }
+            
+            // If we shouldn't retry or have exhausted retries, throw
+            throw error;
+        }
+    }
+    
+    throw lastError;
+};
+
 
 export const generateFullPlan = async (
     goal: string,
@@ -108,10 +175,18 @@ export const generateFullPlan = async (
         required: ['goal', 'learningDays', 'recommendedChannels'],
     };
 
-    const planResponse = await ai.models.generateContent({
-        model: structureModel,
-        contents: planPrompt,
-        config: { responseMimeType: 'application/json', responseSchema: planSchema },
+    const planResponse = await retryWithBackoff(
+        () => ai.models.generateContent({
+            model: structureModel,
+            contents: planPrompt,
+            config: { responseMimeType: 'application/json', responseSchema: planSchema },
+        }),
+        3,
+        1000,
+        'Failed to generate learning path structure',
+        progressCallback
+    ).catch((error) => {
+        throw new Error(getErrorMessage(error));
     });
     
     if (!planResponse.text) {
@@ -127,12 +202,20 @@ export const generateFullPlan = async (
         // FIX: Consolidated three API calls into a single call to avoid rate limiting.
         const enrichmentPrompt = `Using Google Search, find resources for a ${level} learner on the topic "${day.topic}". You must find: 1. The single best YouTube video. 2. 2-3 relevant, high-quality articles or tutorials. 3. One practical, ${level}-friendly project idea or tutorial. Respond ONLY with a single, valid JSON object that contains the keys "coreVideo" (object with "title", "url", "summary"), "articles" (array of objects with "title", "url"), and "project" (object with "title", "url", "description"). Do not add any markdown formatting or other text.`;
         
-        const enrichmentResponse = await ai.models.generateContent({
-            model: enrichmentModel,
-            contents: enrichmentPrompt,
-            config: { 
-                tools: [{googleSearch: {}}],
-            },
+        const enrichmentResponse = await retryWithBackoff(
+            () => ai.models.generateContent({
+                model: enrichmentModel,
+                contents: enrichmentPrompt,
+                config: { 
+                    tools: [{googleSearch: {}}],
+                },
+            }),
+            3,
+            1000,
+            `Failed to enrich resources for Day ${day.day}`,
+            progressCallback
+        ).catch((error) => {
+            throw new Error(getErrorMessage(error));
         });
 
         type DayEnrichment = {
@@ -162,12 +245,20 @@ export const generateFullPlan = async (
     // Step 3: Find relevant certifications
     progressCallback('Step 3: Finding relevant certifications...');
     const certPrompt = `Using Google Search, find 2-3 relevant professional certifications for a ${level} learner with the learning goal "${goal}". Respond ONLY with a single, valid JSON array of objects, where each object contains "name", "provider", "url" (the real URL), and "description". Do not add any markdown formatting or other text.`;
-    const certResponse = await ai.models.generateContent({
-        model: enrichmentModel,
-        contents: certPrompt,
-        config: { 
-            tools: [{googleSearch: {}}],
-        },
+    const certResponse = await retryWithBackoff(
+        () => ai.models.generateContent({
+            model: enrichmentModel,
+            contents: certPrompt,
+            config: { 
+                tools: [{googleSearch: {}}],
+            },
+        }),
+        3,
+        1000,
+        'Failed to find certifications',
+        progressCallback
+    ).catch((error) => {
+        throw new Error(getErrorMessage(error));
     });
     const suggestedCertifications: Certification[] = parseJsonFromResponse(certResponse.text);
     const certificationSources = (certResponse.candidates?.[0]?.groundingMetadata?.groundingChunks ?? []).filter(s => s.web?.uri);
