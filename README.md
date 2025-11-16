@@ -1,20 +1,48 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# AI Learning Path Generator
 
-# Run and deploy your AI Studio app
+Your personal AI mentor. Turn any ambitious goal into a structured, daily learning plan and master new skills faster than ever before.
 
-This contains everything you need to run your app locally.
+## Features
 
-View your app in AI Studio: https://ai.studio/apps/drive/1z1NGyJuU1Xo4HQGOfwmgNQ0P-EDc47tU
+- 🎯 Set learning goals with customizable timelines
+- 📊 Generate structured daily learning plans
+- 🤖 Powered by Google Gemini AI
+- 📱 Modern React + TypeScript interface
+- ⚡ Built with Vite for fast development
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
-
+**Prerequisites:** Node.js
 
 1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+   ```bash
+   npm install
+   ```
+
+2. Create a `.env.local` file in the root directory and set your Gemini API key:
+   ```
+   GEMINI_API_KEY=your_api_key_here
+   ```
+
 3. Run the app:
-   `npm run dev`
+   ```bash
+   npm run dev
+   ```
+
+## Tech Stack
+
+- React 19
+- TypeScript
+- Vite
+- Google Gemini AI API
+
+## Getting Your Gemini API Key
+
+1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Sign in with your Google account
+3. Create a new API key
+4. Copy the key to your `.env.local` file
+
+## License
+
+MIT
