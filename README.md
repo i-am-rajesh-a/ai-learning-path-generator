@@ -43,6 +43,39 @@ Your personal AI mentor. Turn any ambitious goal into a structured, daily learni
 3. Create a new API key
 4. Copy the key to your `.env.local` file
 
+## Deployment
+
+This project is configured for easy deployment on various platforms. Configuration files are already included in the repository.
+
+### Deploy on Vercel (Recommended)
+
+1. Go to [Vercel](https://vercel.com) and sign in with GitHub
+2. Click "New Project" and import your repository
+3. Add environment variable: `GEMINI_API_KEY` with your API key
+4. Click "Deploy"
+
+Your site will be live in under 2 minutes! 🚀
+
+### Deploy on Netlify
+
+1. Go to [Netlify](https://netlify.com) and sign in with GitHub
+2. Click "Add new site" → "Import an existing project"
+3. Select your repository
+4. Go to Site settings → Environment variables
+5. Add `GEMINI_API_KEY` with your API key
+6. Click "Deploy site"
+
+### Deploy on Cloudflare Pages
+
+1. Go to [Cloudflare Pages](https://dash.cloudflare.com)
+2. Connect to Git → GitHub and select your repository
+3. Configure:
+   - Framework preset: Vite
+   - Build command: `npm run build`
+   - Build output directory: `dist`
+4. Add environment variable: `GEMINI_API_KEY`
+5. Click "Save and Deploy"
+
 ## License
 
 MIT
