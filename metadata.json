@@ -1,0 +1,5 @@
+{
+  "name": "AI Learning Path Generator",
+  "description": "An autonomous AI system that creates complete day-wise learning paths using YouTube videos, and your choice of Google Drive documents or Notion pages.",
+  "requestFramePermissions": []
+}
